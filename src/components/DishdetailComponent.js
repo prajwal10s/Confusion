@@ -16,69 +16,112 @@ import {
   Label
 } from "reactstrap";
 import { Control, LocalForm, Errors } from "react-redux-form";
-// import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+//import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 //import { faPencilAlt } from "@fortawesome/free-solid-svg-icons";
 import { Link } from "react-router-dom";
+import { FadeTransform, Fade, Stagger } from "react-animation-components";
 
-// import CommentForm from "./CommentFormComponent";
+import { Loading } from "./LoadingComponent";
+import { baseUrl } from "../shared/baseUrl";
 
-function RenderDish(dishDetail) {
+function RenderDish(dish) {
   return (
-    <Card>
-      <CardImg top src={dishDetail.image} alt={dishDetail.name} />
-      <CardBody>
-        <CardTitle>{dishDetail.name}</CardTitle>
-        <CardText>{dishDetail.description}</CardText>
-      </CardBody>
-    </Card>
+    <FadeTransform
+      in
+      transformProps={{
+        exitTransform: "scale(0.5) translateY(-50%)"
+      }}
+    >
+      <Card>
+        <CardImg top src={baseUrl + dish.image} alt={dish.name} />
+        <CardBody>
+          <CardTitle>{dish.name}</CardTitle>
+          <CardText>{dish.description}</CardText>
+        </CardBody>
+      </Card>
+    </FadeTransform>
   );
 }
 
-function RenderComments(comments) {
-  let commentList = comments.comments.map((comment, i) => (
-    <li key={i} className="commentList">
-      {comment.comment}
-      <br />
-      <br />
-      -- {comment.author},
-      {new Intl.DateTimeFormat("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "2-digit"
-      }).format(new Date(Date.parse(comment.date)))}
-      <br />
-      <br />
-    </li>
-  ));
-  commentList.push(<CommentForm></CommentForm>);
-  return commentList;
+function RenderComments({ comments, postComment, dishId }) {
+  if (comments != null) {
+    return (
+      <div>
+        <h4>Comments</h4>
+        <ul className="list-unstyled">
+          <Stagger in>
+            {comments.map(comment => {
+              return (
+                <Fade in>
+                  <li key={comment.id}>
+                    <p>{comment.comment}</p>
+                    <p>
+                      -- {comment.author} ,{" "}
+                      {new Intl.DateTimeFormat("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "2-digit"
+                      }).format(new Date(Date.parse(comment.date)))}
+                    </p>
+                  </li>
+                </Fade>
+              );
+            })}
+          </Stagger>
+          <CommentForm dishId={dishId} postComment={postComment} />
+        </ul>
+      </div>
+    );
+  }
 }
 
 const DishDetail = props => {
-  return (
-    <div className="container">
-      <div className="row">
-        <Breadcrumb>
-          <BreadcrumbItem>
-            <Link to="/menu">Menu</Link>
-          </BreadcrumbItem>
-          <BreadcrumbItem active>{props.dish.name}</BreadcrumbItem>
-        </Breadcrumb>
-        <div className="col-12">
-          <h3>{props.dish.name}</h3>
-          <hr />
+  if (props.isLoading) {
+    return (
+      <div className="container">
+        <div className="row">
+          <Loading />
         </div>
       </div>
-      <div className="row">
-        <div className="col-12 col-md-5 m-1">
-          <RenderDish {...props.dish} />
-        </div>
-        <div className="col-12 col-md-5 m-1">
-          <RenderComments comments={props.comments} />
+    );
+  } else if (props.errMess) {
+    return (
+      <div className="container">
+        <div className="row">
+          <h4>{props.errMess}</h4>
         </div>
       </div>
-    </div>
-  );
+    );
+  } else if (props.dish != null) {
+    return (
+      <div className="container">
+        <div className="row">
+          <Breadcrumb>
+            <BreadcrumbItem>
+              <Link to="/menu">Menu</Link>
+            </BreadcrumbItem>
+            <BreadcrumbItem active>{props.dish.name}</BreadcrumbItem>
+          </Breadcrumb>
+          <div className="col-12">
+            <h3>{props.dish.name}</h3>
+            <hr />
+          </div>
+        </div>
+        <div className="row">
+          <div className="col-12 col-md-5 m-1">
+            <RenderDish {...props.dish} />
+          </div>
+          <div className="col-12 col-md-5 m-1">
+            <RenderComments
+              comments={props.comments}
+              postComment={props.postComment}
+              dishId={props.dish.id}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  } else return <div></div>;
 };
 
 // CommentForm Component and it's helper functions
@@ -102,8 +145,12 @@ class CommentForm extends Component {
     });
   }
   submitComment(values) {
-    console.log("Current State is: " + JSON.stringify(values));
-    alert("Current State is: " + JSON.stringify(values));
+    this.props.postComment(
+      this.props.dishId,
+      values.rating,
+      values.author,
+      values.comment
+    );
   }
   render() {
     return (
@@ -112,7 +159,7 @@ class CommentForm extends Component {
           className="btn btn-light border border-dark"
           onClick={this.toggleModal}
         >
-
+          {/* <FontAwesomeIcon icon={faPencilAlt}></FontAwesomeIcon> */}
           &nbsp; Submit comment
         </button>
         <Modal isOpen={this.state.isModalOpen} toggle={this.toggleModal}>
@@ -144,9 +191,9 @@ class CommentForm extends Component {
                 </Label>
                 <Col md={12}>
                   <Control.text
-                    model=".name"
-                    id="name"
-                    name="name"
+                    model=".author"
+                    id="author"
+                    name="author"
                     placeholder="Author Name"
                     className="form-control"
                     validators={{
